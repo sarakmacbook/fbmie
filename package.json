@@ -1,0 +1,29 @@
+{
+  "name": "fbmie",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Forensic Blockchain Multi-chain Intelligence Engine — Zero-account cross-chain wallet sanctions, ransomware, mixer, darknet & laundering pattern screener powered by free public APIs.",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000",
+    "lint": "tsc --noEmit",
+    "sync-intel": "node scripts/sync-intel.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "lucide-react": "^1.82.0",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.8.3"
+  }
+}
