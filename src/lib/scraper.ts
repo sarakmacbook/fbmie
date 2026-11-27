@@ -1,4 +1,5 @@
 import { detectAddress, normalizeForLookup } from "./chains";
+import { serverFetch } from "./http-client";
 import { lookupLocalIntel } from "./intel-index";
 import { ChainId, ScrapeResult } from "./types";
 
@@ -101,7 +102,7 @@ export async function scrapePublicEndpoint(rawUrl: string): Promise<ScrapeResult
   let text = "";
 
   try {
-    const res = await fetch(validation.url.toString(), {
+    const res = await serverFetch(validation.url.toString(), {
       signal: controller.signal,
       redirect: "follow",
       headers: {

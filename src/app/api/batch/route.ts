@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { detectAddress } from "@/lib/chains";
+import { runWithProxyConfig } from "@/lib/http-client";
+import { readProxyConfigFromRequest } from "@/lib/proxy-config";
 import { screenWalletAddress } from "@/lib/screening-engine";
 import { BatchItemSummary } from "@/lib/types";
 
@@ -31,82 +33,85 @@ export async function POST(req: NextRequest) {
     ).slice(0, MAX_BATCH);
 
     const deepScan = body.deepScan ?? false;
+    const proxyCfg = readProxyConfigFromRequest(req);
     const started = Date.now();
 
     // Process with bounded concurrency of 5 so free APIs stay snappy & respectful
     const results: BatchItemSummary[] = [];
     const chunkSize = 5;
 
-    for (let i = 0; i < cleaned.length; i += chunkSize) {
-      const slice = cleaned.slice(i, i + chunkSize);
-      const batchSlice = await Promise.all(
-        slice.map(async (addr): Promise<BatchItemSummary> => {
-          const det = detectAddress(addr);
-          if (!det.valid) {
-            return {
-              address: addr,
-              primaryChain: "unknown",
-              valid: false,
-              error: det.error || "Invalid address format",
-              riskScore: 0,
-              riskTier: "LOW",
-              ofacHit: false,
-              unEuHit: false,
-              ransomwareHit: false,
-              mixerHit: false,
-              darknetHit: false,
-              launderingDetected: false,
-              topFinding: "Invalid address format",
-              findingsCount: 0,
-            };
-          }
-          try {
-            const report = await screenWalletAddress(addr, { deepScan });
-            const pillarMap = new Map(report.pillars.map((p) => [p.id, p]));
-            const topRisk = report.findings.find(
-              (f) => f.category !== "benign" && f.category !== "exchange" && f.category !== "bridge"
-            );
-            return {
-              address: report.address,
-              primaryChain: report.primaryChain,
-              valid: true,
-              riskScore: report.riskScore,
-              riskTier: report.riskTier,
-              ofacHit: pillarMap.get("ofac")?.status !== "CLEAR",
-              unEuHit: pillarMap.get("un_eu")?.status !== "CLEAR",
-              ransomwareHit: pillarMap.get("ransomware")?.status !== "CLEAR",
-              mixerHit: pillarMap.get("mixers")?.status !== "CLEAR",
-              darknetHit: pillarMap.get("darknet")?.status !== "CLEAR",
-              launderingDetected: pillarMap.get("laundering")?.status !== "CLEAR",
-              topFinding:
-                topRisk?.title ||
-                report.findings[0]?.title ||
-                "No watchlist or compliance flags detected",
-              findingsCount: report.findings.filter((f) => f.weight > 0).length,
-              report,
-            };
-          } catch (err) {
-            return {
-              address: addr,
-              primaryChain: det.primaryChain,
-              valid: false,
-              error: err instanceof Error ? err.message : "Screen failed",
-              riskScore: 0,
-              riskTier: "LOW",
-              ofacHit: false,
-              unEuHit: false,
-              ransomwareHit: false,
-              mixerHit: false,
-              darknetHit: false,
-              launderingDetected: false,
-              topFinding: "Screening error",
-              findingsCount: 0,
-            };
-          }
-        })
-      );
-      results.push(...batchSlice);
-    }
+    await runWithProxyConfig(proxyCfg, async () => {
+      for (let i = 0; i < cleaned.length; i += chunkSize) {
+        const slice = cleaned.slice(i, i + chunkSize);
+        const batchSlice = await Promise.all(
+          slice.map(async (addr): Promise<BatchItemSummary> => {
+            const det = detectAddress(addr);
+            if (!det.valid) {
+              return {
+                address: addr,
+                primaryChain: "unknown",
+                valid: false,
+                error: det.error || "Invalid address format",
+                riskScore: 0,
+                riskTier: "LOW",
+                ofacHit: false,
+                unEuHit: false,
+                ransomwareHit: false,
+                mixerHit: false,
+                darknetHit: false,
+                launderingDetected: false,
+                topFinding: "Invalid address format",
+                findingsCount: 0,
+              };
+            }
+            try {
+              const report = await screenWalletAddress(addr, { deepScan });
+              const pillarMap = new Map(report.pillars.map((p) => [p.id, p]));
+              const topRisk = report.findings.find(
+                (f) => f.category !== "benign" && f.category !== "exchange" && f.category !== "bridge"
+              );
+              return {
+                address: report.address,
+                primaryChain: report.primaryChain,
+                valid: true,
+                riskScore: report.riskScore,
+                riskTier: report.riskTier,
+                ofacHit: pillarMap.get("ofac")?.status !== "CLEAR",
+                unEuHit: pillarMap.get("un_eu")?.status !== "CLEAR",
+                ransomwareHit: pillarMap.get("ransomware")?.status !== "CLEAR",
+                mixerHit: pillarMap.get("mixers")?.status !== "CLEAR",
+                darknetHit: pillarMap.get("darknet")?.status !== "CLEAR",
+                launderingDetected: pillarMap.get("laundering")?.status !== "CLEAR",
+                topFinding:
+                  topRisk?.title ||
+                  report.findings[0]?.title ||
+                  "No watchlist or compliance flags detected",
+                findingsCount: report.findings.filter((f) => f.weight > 0).length,
+                report,
+              };
+            } catch (err) {
+              return {
+                address: addr,
+                primaryChain: det.primaryChain,
+                valid: false,
+                error: err instanceof Error ? err.message : "Screen failed",
+                riskScore: 0,
+                riskTier: "LOW",
+                ofacHit: false,
+                unEuHit: false,
+                ransomwareHit: false,
+                mixerHit: false,
+                darknetHit: false,
+                launderingDetected: false,
+                topFinding: "Screening error",
+                findingsCount: 0,
+              };
+            }
+          })
+        );
+        results.push(...batchSlice);
+      }
+    });
 
     const summary = {
       total: results.length,

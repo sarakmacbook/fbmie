@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { runWithProxyConfig } from "@/lib/http-client";
+import { readProxyConfigFromRequest } from "@/lib/proxy-config";
 import { scrapePublicEndpoint } from "@/lib/scraper";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +16,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await scrapePublicEndpoint(body.url);
+    const proxyCfg = readProxyConfigFromRequest(req);
+    const result = await runWithProxyConfig(proxyCfg, () =>
+      scrapePublicEndpoint(body.url!)
+    );
     return NextResponse.json(result, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to scrape endpoint";

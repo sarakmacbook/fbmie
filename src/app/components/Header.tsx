@@ -5,15 +5,18 @@ import {
   Database,
   Globe,
   Layers,
+  Network,
   ShieldAlert,
 } from "lucide-react";
 
-export type ActiveTab = "screen" | "batch" | "scraper" | "index";
+export type ActiveTab = "screen" | "batch" | "scraper" | "index" | "proxy";
 
 interface HeaderProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   totalRecords: number | null;
+  clientIp: string | null;
+  proxyActive: boolean;
   onOpenApiDocs: () => void;
 }
 
@@ -21,13 +24,16 @@ export function Header({
   activeTab,
   onTabChange,
   totalRecords,
+  clientIp,
+  proxyActive,
   onOpenApiDocs,
 }: HeaderProps) {
   const tabs: Array<{ id: ActiveTab; label: string; icon: React.ReactNode }> = [
     { id: "screen", label: "Screen Address", icon: <ShieldAlert className="h-3.5 w-3.5" /> },
     { id: "batch", label: "Batch Screen", icon: <Layers className="h-3.5 w-3.5" /> },
-    { id: "scraper", label: "Live Feeds & API Scraper", icon: <Globe className="h-3.5 w-3.5" /> },
+    { id: "scraper", label: "Live Feeds & Scraper", icon: <Globe className="h-3.5 w-3.5" /> },
     { id: "index", label: "Intel Registry", icon: <Database className="h-3.5 w-3.5" /> },
+    { id: "proxy", label: "Proxy & IP", icon: <Network className="h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -66,7 +72,7 @@ export function Header({
                 key={tab.id}
                 type="button"
                 onClick={() => onTabChange(tab.id)}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   active
                     ? "bg-[#1A2434] text-sky-300 shadow-sm ring-1 ring-sky-500/30"
                     : "text-slate-400 hover:bg-[#151C28] hover:text-slate-200"
@@ -79,23 +85,47 @@ export function Header({
           })}
         </nav>
 
-        {/* Status & REST API */}
-        <div className="flex items-center gap-2.5">
-          <div className="hidden items-center gap-2 rounded-md border border-[#1E2736] bg-[#0F141D] px-2.5 py-1.5 text-[11px] text-slate-300 lg:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono tabular-nums">
-              {totalRecords ? `${totalRecords.toLocaleString()} indexed` : "5,300+ indexed"}
+        {/* Live Current IP Pill + Status + REST API */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onTabChange("proxy")}
+            title="View your current IP check & configure server proxy"
+            className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 font-mono text-[11px] transition-colors ${
+              proxyActive
+                ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15"
+                : "border-[#1E2736] bg-[#0F141D] text-slate-300 hover:border-sky-500/40 hover:text-sky-200"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                proxyActive ? "bg-emerald-400 animate-pulse" : "bg-sky-400"
+              }`}
+            />
+            <span className="tabular-nums">
+              {clientIp ? `IP ${clientIp}` : "IP Check"}
             </span>
-            <span className="text-slate-500">·</span>
-            <span className="text-slate-400">7 Live APIs</span>
+            {proxyActive && (
+              <span className="rounded bg-emerald-500/20 px-1 text-[9px] uppercase text-emerald-300">
+                Proxy
+              </span>
+            )}
+          </button>
+
+          <div className="hidden items-center gap-1.5 rounded-md border border-[#1E2736] bg-[#0F141D] px-2.5 py-1.5 text-[11px] text-slate-400 xl:flex">
+            <span className="font-mono text-slate-300 tabular-nums">
+              {totalRecords ? `${totalRecords.toLocaleString()}` : "5,300+"}
+            </span>
+            <span>indexed</span>
           </div>
+
           <button
             type="button"
             onClick={onOpenApiDocs}
             className="flex items-center gap-1.5 rounded-md border border-[#1E2736] bg-[#0F141D] px-2.5 py-1.5 font-mono text-xs text-slate-300 transition-colors hover:border-sky-500/40 hover:text-sky-300"
           >
             <Code2 className="h-3.5 w-3.5" />
-            <span>REST API</span>
+            <span className="hidden sm:inline">REST API</span>
           </button>
         </div>
       </div>

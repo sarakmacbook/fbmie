@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { runWithProxyConfig } from "@/lib/http-client";
+import { readProxyConfigFromRequest } from "@/lib/proxy-config";
 import { screenWalletAddress } from "@/lib/screening-engine";
 import { ChainId } from "@/lib/types";
 
@@ -30,7 +32,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const report = await screenWalletAddress(address, { chain, deepScan });
+    const proxyCfg = readProxyConfigFromRequest(req);
+    const report = await runWithProxyConfig(proxyCfg, () =>
+      screenWalletAddress(address, { chain, deepScan })
+    );
     return NextResponse.json(report, { status: 200, headers: CORS_HEADERS });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to screen wallet address";
@@ -53,10 +58,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const report = await screenWalletAddress(body.address, {
-      chain: body.chain ?? "auto",
-      deepScan: body.deepScan ?? true,
-    });
+    const proxyCfg = readProxyConfigFromRequest(req);
+    const report = await runWithProxyConfig(proxyCfg, () =>
+      screenWalletAddress(body.address!, {
+        chain: body.chain ?? "auto",
+        deepScan: body.deepScan ?? true,
+      })
+    );
     return NextResponse.json(report, { status: 200, headers: CORS_HEADERS });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Screening failed";
