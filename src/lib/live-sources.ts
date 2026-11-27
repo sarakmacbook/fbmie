@@ -1,4 +1,5 @@
 import { CHAIN_META, CHAINALYSIS_ORACLE_EVM, normalizeForLookup } from "./chains";
+import { serverFetch } from "./http-client";
 import { ChainActivitySnapshot, ChainId, NormalizedTx, SourceAuditEntry } from "./types";
 
 const DEFAULT_TIMEOUT_MS = 4500;
@@ -12,7 +13,7 @@ async function fetchJsonWithTimeout<T>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
+    const res = await serverFetch(url, {
       ...init,
       signal: controller.signal,
       headers: {
@@ -45,7 +46,7 @@ async function fetchTextWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
+    const res = await serverFetch(url, {
       signal: controller.signal,
       headers: { "User-Agent": "FBMIE-Compliance-Screener/1.0" },
       cache: "no-store",

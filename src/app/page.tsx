@@ -18,6 +18,7 @@ import { BatchScreener } from "./components/BatchScreener";
 import { FeedScraperPanel } from "./components/FeedScraperPanel";
 import { ActiveTab, Header } from "./components/Header";
 import { IntelBrowser } from "./components/IntelBrowser";
+import { ProxyIpPanel } from "./components/ProxyIpPanel";
 import { ScreeningReportView } from "./components/ScreeningReportView";
 import { SearchConsole } from "./components/SearchConsole";
 
@@ -39,11 +40,13 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ScreeningReport | null>(null);
   const [totalRecords, setTotalRecords] = useState<number | null>(null);
+  const [clientIp, setClientIp] = useState<string | null>(null);
+  const [proxyActive, setProxyActive] = useState(false);
   const [recentHistory, setRecentHistory] = useState<HistoryEntry[]>([]);
   const [batchSeedText, setBatchSeedText] = useState("");
   const [apiModalOpen, setApiModalOpen] = useState(false);
 
-  // Load initial stats & browser history
+  // Load initial stats, current IP check & browser history
   useEffect(() => {
     try {
       const saved = localStorage.getItem(HISTORY_KEY);
@@ -59,6 +62,18 @@ export default function HomePage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.stats?.totalRecords) setTotalRecords(d.stats.totalRecords);
+      })
+      .catch(() => {});
+
+    fetch("/api/ip-check?mode=client", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.client?.ip) setClientIp(d.client.ip);
+        if (d?.proxyConfig) {
+          setProxyActive(
+            d.proxyConfig.mode !== "direct" && Boolean(d.proxyConfig.host)
+          );
+        }
       })
       .catch(() => {});
   }, []);
@@ -159,6 +174,8 @@ export default function HomePage() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         totalRecords={totalRecords}
+        clientIp={clientIp}
+        proxyActive={proxyActive}
         onOpenApiDocs={() => setApiModalOpen(true)}
       />
 
@@ -277,6 +294,15 @@ export default function HomePage() {
 
         {activeTab === "index" && (
           <IntelBrowser onScreenAddress={handlePivotAddress} />
+        )}
+
+        {activeTab === "proxy" && (
+          <ProxyIpPanel
+            onStatusUpdated={(st) => {
+              if (st.clientIp) setClientIp(st.clientIp);
+              setProxyActive(st.proxyActive);
+            }}
+          />
         )}
       </main>
 

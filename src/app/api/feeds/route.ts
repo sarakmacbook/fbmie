@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { runWithProxyConfig, serverFetch } from "@/lib/http-client";
 import { getIntelStats } from "@/lib/intel-index";
+import { readProxyConfigFromRequest } from "@/lib/proxy-config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -101,7 +103,7 @@ async function probeUrl(url: string): Promise<{ reachable: boolean; latencyMs: n
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3500);
   try {
-    const res = await fetch(url, {
+    const res = await serverFetch(url, {
       method: "GET",
       signal: controller.signal,
       headers: { "User-Agent": "FBMIE-Feed-Monitor/1.0" },
@@ -119,20 +121,23 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const doProbe = searchParams.get("probe") === "true" || searchParams.get("probe") === "1";
   const stats = getIntelStats();
+  const proxyCfg = readProxyConfigFromRequest(req);
 
-  const feeds = await Promise.all(
-    FEED_CATALOG.map(async (f) => {
-      if (!doProbe || !f.probeUrl) {
-        return { ...f, liveStatus: "ready" as const, latencyMs: null as number | null };
-      }
-      const p = await probeUrl(f.probeUrl);
-      return {
-        ...f,
-        liveStatus: p.reachable ? ("online" as const) : ("degraded" as const),
-        latencyMs: p.latencyMs,
-        httpStatus: p.status,
-      };
-    })
+  const feeds = await runWithProxyConfig(proxyCfg, () =>
+    Promise.all(
+      FEED_CATALOG.map(async (f) => {
+        if (!doProbe || !f.probeUrl) {
+          return { ...f, liveStatus: "ready" as const, latencyMs: null as number | null };
+        }
+        const p = await probeUrl(f.probeUrl);
+        return {
+          ...f,
+          liveStatus: p.reachable ? ("online" as const) : ("degraded" as const),
+          latencyMs: p.latencyMs,
+          httpStatus: p.status,
+        };
+      })
+    )
   );
 
   return NextResponse.json({

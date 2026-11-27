@@ -45,6 +45,13 @@ export function ApiDocsModal({ open, onClose }: ApiDocsModalProps) {
       desc: "Inspect all integrated free zero-key feeds, dataset record counts & live reachability.",
       curl: `curl -s "${origin}/api/feeds?probe=true"`,
     },
+    {
+      id: "ipcheck",
+      method: "GET",
+      path: "/api/ip-check",
+      desc: "Returns your current client IP, deployment server direct egress IP, and proxied egress IP (if HTTP/HTTPS proxy is configured).",
+      curl: `curl -s "${origin}/api/ip-check"`,
+    },
   ];
 
   const copy = async (id: string, text: string) => {
